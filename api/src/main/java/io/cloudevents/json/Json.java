@@ -16,6 +16,7 @@
 package io.cloudevents.json;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
@@ -37,6 +38,8 @@ public final class Json {
         module.addSerializer(ZonedDateTime.class, new ZonedDateTimeSerializer());
         module.addDeserializer(ZonedDateTime.class, new ZonedDateTimeDeserializer());
         MAPPER.registerModule(module);
+        MAPPER.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
     }
 
     /**
