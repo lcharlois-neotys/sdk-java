@@ -22,6 +22,7 @@ import io.cloudevents.SpecVersion;
 import io.cloudevents.http.HttpTransportAttributes;
 import io.cloudevents.http.V02HttpTransportMappers;
 import io.cloudevents.http.vertx.VertxCloudEvents;
+import io.cloudevents.impl.DefaultCloudEventImpl;
 import io.cloudevents.json.Json;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
@@ -37,7 +38,9 @@ import java.lang.reflect.Field;
 import java.net.URI;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 public final class VertxCloudEventsImpl implements VertxCloudEvents {
 
@@ -140,7 +143,36 @@ public final class VertxCloudEventsImpl implements VertxCloudEvents {
             request.bodyHandler((Buffer buff) -> {
 
                 if (buff.length()>0) {
-                    resultHandler.handle(Future.succeededFuture(Json.decodeCloudEvent(buff.toString())));
+	                final String jsonString = buff.toString();
+	                final JsonObject json = new JsonObject(jsonString);
+	                final DefaultCloudEventImpl result = Json.decodeCloudEvent(jsonString);
+
+
+	                List<Extension> decodedExtensions = new ArrayList<>();
+	                if (extensions != null && extensions.length > 0) {
+
+		                // move this out
+		                Arrays.asList(extensions).forEach(ext -> {
+
+			                try {
+				                Object extObj  = ext.newInstance();
+				                Field[] fields = ext.getDeclaredFields();
+
+				                for (Field field : fields) {
+					                boolean accessible = field.isAccessible();
+					                field.setAccessible(true);
+					                field.set(extObj, json.getValue(field.getName()));
+					                field.setAccessible(accessible);
+				                }
+				                decodedExtensions.add((Extension) extObj);
+			                } catch (InstantiationException | IllegalAccessException e) {
+				                e.printStackTrace();
+			                }
+		                });
+	                }
+	                final CloudEventBuilder<T> eventBuilder = CloudEventBuilder.copyOf(result);
+	                decodedExtensions.forEach(eventBuilder::extension);
+	                resultHandler.handle(Future.succeededFuture(eventBuilder.build()));
                 } else {
                     throw new IllegalArgumentException("no cloudevent body");
                 }

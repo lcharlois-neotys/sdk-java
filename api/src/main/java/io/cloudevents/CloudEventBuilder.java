@@ -40,7 +40,25 @@ public class CloudEventBuilder<T> {
     private T data;
     private final List<Extension> extensions = new ArrayList<>();
 
-    /**
+	public CloudEventBuilder() {
+	}
+
+	private CloudEventBuilder(final String specversion, final String contentType, final String type, final URI source, final String id, final ZonedDateTime time, final URI schemaURL, final T data) {
+		this.specversion = specversion;
+		this.contentType = contentType;
+		this.type = type;
+		this.source = source;
+		this.id = id;
+		this.time = time;
+		this.schemaURL = schemaURL;
+		this.data = data;
+	}
+
+	public static <T> CloudEventBuilder<T> copyOf(final CloudEvent<T> event) {
+		return new CloudEventBuilder<T>(event.getSpecVersion(), event.getContentType().orElse(null), event.getType(), event.getSource(), event.getId(), event.getTime().orElse(null), event.getSchemaURL().orElse(null), event.getData().orElse(null));
+	}
+
+	/**
      * The version of the CloudEvents specification which the event uses.
      */
     public CloudEventBuilder<T> specVersion(final String specVersion) {
