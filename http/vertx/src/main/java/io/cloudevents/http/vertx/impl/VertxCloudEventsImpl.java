@@ -40,6 +40,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 public final class VertxCloudEventsImpl implements VertxCloudEvents {
@@ -231,12 +232,34 @@ public final class VertxCloudEventsImpl implements VertxCloudEvents {
             });
 
         } else {
-            // read required headers
-            request.putHeader(HttpHeaders.CONTENT_TYPE, STRUCTURED_TYPE);
-            final String json = Json.encode(cloudEvent);
-            request.putHeader(HttpHeaders.CONTENT_LENGTH, HttpHeaders.createOptimized(String.valueOf(json.length())));
-            // this the body
-            request.write(json);
+	        // read required headers
+	        request.putHeader(HttpHeaders.CONTENT_TYPE, STRUCTURED_TYPE);
+	        final String json = Json.encode(cloudEvent);
+	        //Write extensions
+	        final JsonObject jsonObject = new JsonObject(json);
+	        cloudEvent.getExtensions().orElse(Collections.emptyList())
+			        .forEach(extension -> writeExtesion(extension, jsonObject));
+	        // this the body
+	        final String encode = jsonObject.encode();
+	        request.putHeader(HttpHeaders.CONTENT_LENGTH, HttpHeaders.createOptimized(String.valueOf(encode.length())));
+	        request.write(encode);
         }
     }
+
+	private void writeExtesion(final Extension extension, final JsonObject jsonObject) {
+		try {
+			Field[] fields = extension.getClass().getDeclaredFields();
+
+			for (Field field : fields) {
+				boolean accessible = field.isAccessible();
+				field.setAccessible(true);
+				jsonObject.put(field.getName(), field.get(extension));
+				field.setAccessible(accessible);
+			}
+
+		} catch (IllegalAccessException e) {
+			e.printStackTrace();
+		}
+	}
+
 }
